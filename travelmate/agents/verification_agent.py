@@ -12,6 +12,7 @@ from travelmate.tools.llm_content import message_to_text
 from travelmate.tools.logging_utils import compact_text, get_logger
 from travelmate.tools.markdown_contract import parse_verification_markdown
 from travelmate.tools.model_factory import get_chat_model
+from travelmate.tools.token_tracker import get_tracker
 
 
 LOGGER = get_logger("verification_agent")
@@ -106,6 +107,7 @@ def verification_agent(state: PlannerState) -> dict[str, Any]:
                 HumanMessage(content=json.dumps(payload, ensure_ascii=False, separators=(",", ":"))),
             ]
         )
+        get_tracker().record("verification_agent", llm_response)
         verification_markdown = message_to_text(llm_response)
         response = parse_verification_markdown(verification_markdown)
     except BadRequestError as exc:

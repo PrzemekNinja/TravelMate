@@ -10,6 +10,7 @@ from travelmate.prompts.transport_prompt import SYSTEM_PROMPT, TASK_PROMPT
 from travelmate.tools.llm_content import message_to_text
 from travelmate.tools.logging_utils import compact_text, get_logger
 from travelmate.tools.model_factory import get_chat_model
+from travelmate.tools.token_tracker import get_tracker
 
 
 LOGGER = get_logger("transport_agent")
@@ -80,6 +81,7 @@ def transport_agent(state: PlannerState) -> dict[str, Any]:
                 HumanMessage(content=json.dumps(payload, ensure_ascii=False, indent=2)),
             ]
         )
+        get_tracker().record("transport_agent", response)
         transport_report = message_to_text(response)
     except Exception as exc:
         LOGGER.warning("Krok 2/6: błąd transport_agent (%s). Używam fallbacku.", exc)

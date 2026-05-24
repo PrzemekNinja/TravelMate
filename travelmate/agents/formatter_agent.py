@@ -12,6 +12,7 @@ from travelmate.tools.llm_content import message_to_text
 from travelmate.tools.logging_utils import get_logger
 from travelmate.tools.markdown_formatter import build_geo_poi_section, build_lodging_poi_section, build_markdown
 from travelmate.tools.model_factory import get_chat_model
+from travelmate.tools.token_tracker import get_tracker
 
 
 LOGGER = get_logger("formatter_agent")
@@ -138,6 +139,7 @@ def formatter_agent(state: PlannerState) -> dict[str, Any]:
             HumanMessage(content=payload["baseline_markdown"]),
         ]
     )
+    get_tracker().record("formatter_agent", response)
     final_markdown = message_to_text(response) or baseline_markdown
 
     is_consistent, reason = _is_formatter_output_consistent(

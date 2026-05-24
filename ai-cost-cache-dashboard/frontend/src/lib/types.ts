@@ -63,6 +63,22 @@ export interface SavingsTimelineItem {
   hit: boolean
 }
 
+export interface AgentTokenUsage {
+  agent: string
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+}
+
+export interface PipelineTokenUsage {
+  model_name: string
+  provider: string
+  total_input_tokens: number
+  total_output_tokens: number
+  total_tokens: number
+  agents: AgentTokenUsage[]
+}
+
 export interface TravelMateRun {
   id: string
   destination: string

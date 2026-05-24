@@ -10,6 +10,9 @@ from travelmate.tools.logging_utils import get_logger
 from travelmate.tools.input_parser import ParsedRequest, parse_user_input_to_request_with_metadata
 from travelmate.tools.output_writer import save_itinerary_output
 from travelmate.tools.dashboard_push import push_run_async
+from travelmate.tools.token_tracker import get_tracker
+from travelmate.tools.model_factory import _active_model_name
+from travelmate.tools.config import load_model_config
 
 
 @dataclass
@@ -77,6 +80,18 @@ class PlannerService:
         )
 
         LOGGER.info("Start pipeline agentów (6 kroków).")
+        # Reset token tracker and set model info for this run
+        tracker = get_tracker()
+        tracker.reset()
+        try:
+            cfg = load_model_config()
+            tracker.set_model_info(
+                model_name=_active_model_name(),
+                provider=cfg.provider.value,
+            )
+        except Exception:
+            pass
+
         result = self._app.invoke(
             {
                 "request": parsed.request,
@@ -95,6 +110,16 @@ class PlannerService:
         )
         markdown_plan = result["final_markdown"]
         LOGGER.info("Pipeline agentów zakończony.")
+
+        # Collect token usage summary
+        token_summary = get_tracker().get_summary()
+        LOGGER.info(
+            "Token usage: total=%d (in=%d, out=%d) across %d agents.",
+            token_summary.total_tokens,
+            token_summary.total_input_tokens,
+            token_summary.total_output_tokens,
+            len(token_summary.agents),
+        )
         _emit_event(
             event_callback,
             {
@@ -118,6 +143,15 @@ class PlannerService:
         )
         map_output_path = html_output_path
         LOGGER.info("Zapis wyników OK: %s", html_output_path)
+
+        # Save token usage alongside the itinerary
+        import json as _json
+        token_usage_path = html_output_path.parent / "token_usage.json"
+        token_usage_path.write_text(
+            _json.dumps(token_summary.to_dict(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        LOGGER.info("Token usage saved: %s", token_usage_path)
         _emit_event(
             event_callback,
             {

@@ -24,6 +24,7 @@ class NotifyPayload(BaseModel):
     run_id: str
     request_json: str
     itinerary_md: str
+    token_usage: dict | None = None
 
 
 def _scan_runs() -> list[dict]:
@@ -93,6 +94,7 @@ def notify_run(payload: NotifyPayload):
         "itinerary_preview": payload.itinerary_md[:200].replace("\n", " ") + "...",
         "live": True,
         "pushed_at": datetime.utcnow().isoformat(),
+        "token_usage": payload.token_usage,
     }
 
     # Deduplicate — replace if same id already exists
@@ -130,3 +132,23 @@ def get_run(run_id: str):
         "request_json": json.dumps(request_data, ensure_ascii=False, indent=2),
         "itinerary_md": itinerary_text,
     }
+
+
+@router.get("/{run_id}/tokens")
+def get_run_tokens(run_id: str):
+    """Return real token usage for a run — from file or live push store."""
+    from fastapi import HTTPException
+
+    safe_id = "".join(c for c in run_id if c.isalnum() or c in "_-")
+
+    # Check live store first
+    for run in _live_runs:
+        if run["id"] == safe_id and run.get("token_usage"):
+            return run["token_usage"]
+
+    # Fall back to file
+    token_file = _OUTPUT_DIR / safe_id / "token_usage.json"
+    if token_file.exists():
+        return json.loads(token_file.read_text(encoding="utf-8"))
+
+    raise HTTPException(status_code=404, detail=f"No token usage data for run '{safe_id}'")

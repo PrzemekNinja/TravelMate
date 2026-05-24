@@ -8,6 +8,7 @@ import type {
   SavingsTimelineItem,
   HealthResponse,
   TravelMateRun,
+  PipelineTokenUsage,
 } from './types'
 
 const api = axios.create({
@@ -20,6 +21,8 @@ export const runsApi = {
     api.get<{ runs: TravelMateRun[] }>('/runs').then(r => r.data.runs),
   get: (id: string) =>
     api.get<TravelMateRun>(`/runs/${id}`).then(r => r.data),
+  getTokens: (id: string) =>
+    api.get<PipelineTokenUsage>(`/runs/${id}/tokens`).then(r => r.data),
 }
 
 export const healthApi = {

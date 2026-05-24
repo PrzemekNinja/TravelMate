@@ -12,6 +12,7 @@ from travelmate.tools.llm_content import message_to_text
 from travelmate.tools.logging_utils import get_logger
 from travelmate.tools.markdown_contract import parse_geo_markdown
 from travelmate.tools.model_factory import get_chat_model
+from travelmate.tools.token_tracker import get_tracker
 
 
 LOGGER = get_logger("geo_agent")
@@ -42,6 +43,7 @@ def geo_agent(state: PlannerState) -> dict[str, Any]:
             HumanMessage(content=json.dumps(payload, ensure_ascii=False, indent=2)),
         ]
     )
+    get_tracker().record("geo_agent", response)
     geo_markdown = message_to_text(response)
     draft = parse_geo_markdown(geo_markdown, expected_days=request.days)
 

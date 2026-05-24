@@ -42,6 +42,7 @@ def _push_run(run_folder: Path) -> None:
             "run_id": run_folder.name,
             "request_json": request_file.read_text(encoding="utf-8"),
             "itinerary_md": itinerary_file.read_text(encoding="utf-8"),
+            "token_usage": json.loads(token_usage_file.read_text(encoding="utf-8")) if token_usage_file.exists() else None,
         }).encode("utf-8")
 
         req = urllib.request.Request(

@@ -71,11 +71,12 @@ Lively, traditional, with a slightly more upscale pub feel.
 
 interface InputPanelProps {
   onAnalyze: (request: string, response: string) => void
+  onRunSelected?: (runId: string) => void
   loading: boolean
   error: string | null
 }
 
-export function InputPanel({ onAnalyze, loading, error }: InputPanelProps) {
+export function InputPanel({ onAnalyze, onRunSelected, loading, error }: InputPanelProps) {
   const [requestText, setRequestText] = useState(SAMPLE_REQUEST)
   const [responseText, setResponseText] = useState(SAMPLE_RESPONSE)
   const [jsonError, setJsonError] = useState<string | null>(null)
@@ -100,6 +101,7 @@ export function InputPanel({ onAnalyze, loading, error }: InputPanelProps) {
     setRequestText(run.request_json)
     setResponseText(run.itinerary_md)
     setJsonError(null)
+    onRunSelected?.(run.id)
   }
 
   return (

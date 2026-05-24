@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import { AlertTriangle, Clock } from 'lucide-react'
 import { InputPanel } from '../components/token/InputPanel'
 import { TokenSummary } from '../components/token/TokenSummary'
 import { CostChart } from '../components/token/CostChart'
 import { CostTable } from '../components/token/CostTable'
+import { AgentBreakdown } from '../components/token/AgentBreakdown'
 import { useTokenAnalysis } from '../hooks/useTokenAnalysis'
 
 export function TokenCost() {
   const { result, loading, error, analyze } = useTokenAnalysis()
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
@@ -20,7 +23,12 @@ export function TokenCost() {
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
         {/* Left: Input */}
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-          <InputPanel onAnalyze={analyze} loading={loading} error={error} />
+          <InputPanel
+            onAnalyze={analyze}
+            onRunSelected={setActiveRunId}
+            loading={loading}
+            error={error}
+          />
         </div>
 
         {/* Right: Results */}
@@ -48,12 +56,19 @@ export function TokenCost() {
                 totalTokens={result.total_tokens}
               />
 
-              <CostChart costs={result.costs} />
+              {/* Real pipeline breakdown — shown when a run is selected */}
+              {activeRunId && (
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
+                  <AgentBreakdown runId={activeRunId} />
+                </div>
+              )}
 
+              <CostChart costs={result.costs} />
               <CostTable costs={result.costs} />
 
               <p className="text-xs text-gray-600">
-                * Token counts use tiktoken cl100k_base encoding (GPT-4 compatible). Counts are approximate for non-OpenAI models.
+                * Token counts in the cost comparison use tiktoken cl100k_base (approximate for non-OpenAI models).
+                {activeRunId && ' Real per-agent counts above come directly from the LLM API responses.'}
               </p>
             </>
           ) : (

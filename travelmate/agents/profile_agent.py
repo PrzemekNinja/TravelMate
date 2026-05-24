@@ -10,6 +10,7 @@ from travelmate.tools.llm_content import message_to_text
 from travelmate.tools.logging_utils import compact_text, get_logger
 from travelmate.tools.model_factory import get_chat_model
 from travelmate.tools.payload import request_to_json_payload
+from travelmate.tools.token_tracker import get_tracker
 
 
 LOGGER = get_logger("profile_agent")
@@ -34,6 +35,7 @@ def profile_agent(state: PlannerState) -> dict[str, Any]:
             HumanMessage(content=payload),
         ]
     )
+    get_tracker().record("profile_agent", response)
     profile_summary = message_to_text(response)
     LOGGER.info("Krok 1/6: profil gotowy: %s", compact_text(profile_summary))
     return {

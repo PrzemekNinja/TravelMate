@@ -12,6 +12,7 @@ from travelmate.tools.llm_content import message_to_text
 from travelmate.tools.logging_utils import get_logger
 from travelmate.tools.markdown_contract import parse_itinerary_markdown
 from travelmate.tools.model_factory import get_chat_model
+from travelmate.tools.token_tracker import get_tracker
 
 
 LOGGER = get_logger("itinerary_agent")
@@ -223,6 +224,7 @@ def itinerary_agent(state: PlannerState) -> dict[str, Any]:
                 HumanMessage(content=json.dumps(payload, ensure_ascii=False, separators=(",", ":"))),
             ]
         )
+        get_tracker().record("itinerary_agent", llm_response)
         itinerary_markdown = message_to_text(llm_response)
         response = parse_itinerary_markdown(itinerary_markdown)
     except BadRequestError as exc:
