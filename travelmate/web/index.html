@@ -116,122 +116,153 @@
       * { transition-property: background-color, border-color, color, opacity; transition-duration: 150ms; }
     </style>
   </head>
-  <body class="text-zinc-100">
-    <div class="app-shell mx-auto flex h-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
-      <header class="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-white/10 glass px-4 py-3 shadow-2xl shadow-indigo-950/20">
-        <div>
-          <p class="text-xs uppercase tracking-[0.3em] text-indigo-300">TravelMate AI</p>
-          <h1 class="text-xl font-semibold text-white sm:text-2xl">Multi-Agent Trip Planner</h1>
+  <body>
+    <!-- Toast notification -->
+    <div id="toast" class="fixed top-4 right-4 z-[100] hidden rounded-xl border border-white/10 glass px-4 py-3 text-sm shadow-2xl max-w-xs"></div>
+
+    <div class="app-shell mx-auto flex h-full max-w-7xl flex-col px-3 py-3 sm:px-5 sm:py-4">
+
+      <!-- HEADER -->
+      <header class="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 glass px-4 py-3 shadow-xl">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg">
+            <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase tracking-[0.3em] text-indigo-400">TravelMate AI</p>
+            <h1 class="text-base font-bold text-white sm:text-lg leading-tight">Multi-Agent Trip Planner</h1>
+          </div>
         </div>
         <div class="flex items-center gap-2">
-          <span id="sessionBadge" class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
-            Sesja: inicjalizacja…
-          </span>
-          <button
-            id="adminToggle"
-            class="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            type="button"
-          >
-            Admin_View
+          <div id="modelStatus" class="hidden sm:flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-400">
+            <span id="modelDot" class="h-1.5 w-1.5 rounded-full bg-zinc-500"></span>
+            <span id="modelLabel">...</span>
+          </div>
+          <button id="themeToggle" class="rounded-xl border border-white/10 bg-white/5 p-2 text-zinc-400 hover:text-white" title="Toggle theme">
+            <svg id="themeIconDark" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <svg id="themeIconLight" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
           </button>
+          <span id="runtimeStatus" class="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">IDLE</span>
+          <button id="adminToggle" class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500" type="button">Admin</button>
         </div>
       </header>
 
-      <main id="chatMain" class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-        <section class="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 glass shadow-2xl shadow-black/20">
-          <div class="border-b border-white/10 px-5 py-4">
-            <div class="flex items-center justify-between gap-4">
-              <div>
-                <h2 class="text-lg font-semibold text-white">Asystent podróży</h2>
-                <p class="text-sm text-zinc-400">Opisz swój wyjazd, a TravelMate odpali orkiestrę agentów bez zbędnego jet lagu.</p>
-              </div>
-              <span id="runtimeStatus" class="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">IDLE</span>
-            </div>
-          </div>
+      <!-- TABS -->
+      <div class="mb-3 flex gap-1 rounded-xl border border-white/10 glass p-1">
+        <button class="tab-btn active flex-1 rounded-lg border border-transparent px-3 py-2 text-xs font-semibold text-zinc-300" data-tab="chat">Chat</button>
+        <button class="tab-btn flex-1 rounded-lg border border-transparent px-3 py-2 text-xs font-semibold text-zinc-300" data-tab="trips">My Trips</button>
+      </div>
 
-          <div id="chatFeed" class="thin-scrollbar flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
-            <article class="max-w-3xl rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-200 shadow-lg shadow-black/10">
-              <p class="font-medium text-indigo-300">TravelMate</p>
-              <div class="message-markdown mt-2 text-zinc-200">
-                Cześć! Opisz podróż marzeń — miasto, liczbę dni, budżet i klimat wyprawy. Ja zajmę się resztą, a w <strong>Admin_View</strong> zobaczysz agentów przy pracy.
+      <!-- MAIN -->
+      <main id="chatMain" class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+
+        <!-- TAB: CHAT -->
+        <section id="tabChat" class="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 glass shadow-xl">
+          <!-- Progress bar -->
+          <div id="progressBar" class="hidden border-b border-white/10 px-4 py-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-indigo-300">Pipeline</span>
+              <span id="progressLabel" class="text-xs text-zinc-400">0 / 6</span>
+            </div>
+            <div class="progress-track h-1.5 w-full">
+              <div id="progressFill" class="progress-fill" style="width:0%"></div>
+            </div>
+            <div id="agentPills" class="mt-2 flex flex-wrap gap-1.5"></div>
+          </div>
+          <!-- Chat feed -->
+          <div id="chatFeed" class="thin-scrollbar flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            <article class="max-w-3xl rounded-2xl border msg-assistant px-4 py-3 text-sm shadow-lg">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="h-6 w-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-[10px] font-bold text-white">TM</div>
+                <span class="text-xs font-semibold text-indigo-300">TravelMate</span>
               </div>
+              <div class="md text-sm text-zinc-200">Czesc! Opisz podroz marzen - miasto, liczbe dni, budzet i klimat wyprawy. Mozesz pisac po polsku lub angielsku.</div>
             </article>
           </div>
-
-          <div class="border-t border-white/10 px-4 py-4 sm:px-5">
-            <form id="chatForm" class="flex flex-col gap-3">
-              <label class="sr-only" for="messageInput">Wiadomość</label>
-              <textarea
-                id="messageInput"
-                class="min-h-32 w-full resize-y rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
-                placeholder="Np. 5 dni w Lizbonie dla pary, budżet Mid, lubimy sztukę, jedzenie i spokojne tempo…"
-              ></textarea>
-              <div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-                <p class="text-xs text-zinc-500">WebSocket streamuje logi i statusy agentów na żywo. Trochę jak reality show, tylko dla pipeline’u.</p>
-                <button
-                  id="sendButton"
-                  class="inline-flex items-center justify-center rounded-2xl bg-violet-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  type="submit"
-                >
-                  Wyślij
-                </button>
+          <!-- Input -->
+          <div class="border-t border-white/10 px-4 py-3">
+            <div id="suggestions" class="mb-2 flex flex-wrap gap-1.5">
+              <button class="suggestion-btn rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:border-indigo-400/40">4 dni w Rzymie, budzet Mid</button>
+              <button class="suggestion-btn rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:border-indigo-400/40">Tokio 7 dni, Luxury, historia i jedzenie</button>
+              <button class="suggestion-btn rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:border-indigo-400/40">Barcelona 5 dni, para, sztuka i plaza</button>
+              <button class="suggestion-btn rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-400 hover:text-white hover:border-indigo-400/40">Praga 3 dni, piwo i kultura</button>
+            </div>
+            <form id="chatForm" class="flex gap-2 items-end">
+              <div class="relative flex-1">
+                <textarea id="messageInput" class="w-full resize-none rounded-xl border border-white/10 bg-zinc-950/70 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 placeholder-zinc-500" placeholder="Np. 5 dni w Lizbonie dla pary, budzet Mid, lubimy sztuke i jedzenie..." rows="2"></textarea>
+                <span id="charCount" class="absolute bottom-2 right-3 text-[10px] text-zinc-600"></span>
               </div>
+              <button id="sendButton" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed" type="submit" title="Wyslij (Ctrl+Enter)">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.269 20.876L5.999 12zm0 0h7.5"/></svg>
+              </button>
             </form>
+            <p class="mt-1 text-[10px] text-zinc-600">Ctrl+Enter aby wyslac</p>
           </div>
         </section>
 
-        <aside id="adminPanel" class="hidden h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 glass shadow-2xl shadow-black/20">
-          <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+        <!-- TAB: MY TRIPS -->
+        <section id="tabTrips" class="hidden h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 glass shadow-xl">
+          <div class="border-b border-white/10 px-5 py-4 flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-semibold text-white">Admin_View</h2>
-              <p class="text-sm text-zinc-400">Logi, status agentów i JSON debugowy.</p>
+              <h2 class="text-base font-bold text-white">My Trips</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">All generated itineraries</p>
             </div>
-            <button id="adminCloseDesktop" class="rounded-lg border border-white/10 px-3 py-1 text-xs text-zinc-300">Zamknij</button>
+            <button id="refreshTrips" class="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 hover:text-white">Refresh</button>
           </div>
-          <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-4 overflow-hidden px-4 py-4">
-            <section class="min-h-0">
-              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Agenci</h3>
-              <div id="agentList" class="thin-scrollbar max-h-44 overflow-y-auto grid gap-2 pr-1"></div>
+          <div id="tripsList" class="thin-scrollbar flex-1 overflow-y-auto p-4 space-y-2">
+            <p class="text-xs text-zinc-500 text-center py-8">Loading trips...</p>
+          </div>
+        </section>
+
+        <!-- ADMIN PANEL -->
+        <aside id="adminPanel" class="hidden h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 glass shadow-xl">
+          <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+            <h2 class="text-sm font-bold text-white">Admin View</h2>
+            <button id="adminCloseDesktop" class="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-zinc-400 hover:text-white">X</button>
+          </div>
+          <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-3 overflow-hidden p-3">
+            <section>
+              <h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Agents</h3>
+              <div id="agentList" class="thin-scrollbar max-h-48 overflow-y-auto space-y-1.5"></div>
             </section>
-            <section class="min-h-0 flex flex-col">
-              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Log stream</h3>
-              <div id="logStream" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+            <section class="flex min-h-0 flex-col">
+              <h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Log Stream</h3>
+              <div id="logStream" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-2.5 text-[11px] text-zinc-300 font-mono leading-relaxed"></div>
             </section>
-            <section class="min-h-0 flex flex-col">
-              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Debug JSON</h3>
-              <div id="debugSnapshots" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+            <section class="flex min-h-0 flex-col">
+              <h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Debug JSON</h3>
+              <div id="debugSnapshots" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-2.5 text-[11px] text-zinc-300"></div>
             </section>
           </div>
         </aside>
       </main>
     </div>
 
-    <div id="adminModal" class="fixed inset-0 z-50 hidden bg-black/60 p-4 backdrop-blur-sm xl:hidden">
-      <div class="glass flex h-full flex-col rounded-3xl border border-white/10">
-        <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div>
-            <h2 class="text-lg font-semibold text-white">Admin_View</h2>
-            <p class="text-sm text-zinc-400">Debugging w czasie rzeczywistym</p>
-          </div>
-          <button id="adminCloseMobile" class="rounded-xl border border-white/10 px-3 py-2 text-sm text-zinc-200">Zamknij</button>
+    <!-- ADMIN MODAL (mobile) -->
+    <div id="adminModal" class="fixed inset-0 z-50 hidden bg-black/70 p-3 backdrop-blur-sm xl:hidden">
+      <div class="glass flex h-full flex-col rounded-2xl border border-white/10">
+        <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <h2 class="text-sm font-bold text-white">Admin View</h2>
+          <button id="adminCloseMobile" class="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-zinc-300">Close</button>
         </div>
-        <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-4 overflow-hidden px-4 py-4">
-          <section class="min-h-0">
-            <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Agenci</h3>
-            <div id="agentListMobile" class="thin-scrollbar max-h-40 overflow-y-auto grid gap-2 pr-1"></div>
+        <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-3 overflow-hidden p-3">
+          <section>
+            <h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Agents</h3>
+            <div id="agentListMobile" class="thin-scrollbar max-h-40 overflow-y-auto space-y-1.5"></div>
           </section>
-          <section class="min-h-0 flex flex-col">
-            <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Log stream</h3>
-            <div id="logStreamMobile" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+          <section class="flex min-h-0 flex-col">
+            <h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Log Stream</h3>
+            <div id="logStreamMobile" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-2.5 text-[11px] text-zinc-300 font-mono leading-relaxed"></div>
           </section>
-          <section class="min-h-0 flex flex-col">
-            <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Debug JSON</h3>
-            <div id="debugSnapshotsMobile" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+          <section class="flex min-h-0 flex-col">
+            <h3 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Debug JSON</h3>
+            <div id="debugSnapshotsMobile" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-2.5 text-[11px] text-zinc-300"></div>
           </section>
         </div>
       </div>
     </div>
-
     <script>
       // ── markdown-it renderer ──────────────────────────────────────────────
       const md = window.markdownit ? window.markdownit({ html: false, linkify: true, breaks: true, typographer: true }) : null;
