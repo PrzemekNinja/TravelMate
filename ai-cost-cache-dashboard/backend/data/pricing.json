@@ -1,0 +1,69 @@
+{
+  "last_updated": "2025-06-01",
+  "models": [
+    {
+      "provider": "Anthropic",
+      "model": "Claude 3.5 Sonnet",
+      "model_id": "claude-3-5-sonnet",
+      "input_price_per_million_usd": 3.00,
+      "output_price_per_million_usd": 15.00,
+      "color": "#D97706"
+    },
+    {
+      "provider": "Anthropic",
+      "model": "Claude Haiku",
+      "model_id": "claude-haiku",
+      "input_price_per_million_usd": 0.25,
+      "output_price_per_million_usd": 1.25,
+      "color": "#F59E0B"
+    },
+    {
+      "provider": "OpenAI",
+      "model": "GPT-4.1",
+      "model_id": "gpt-4.1",
+      "input_price_per_million_usd": 2.00,
+      "output_price_per_million_usd": 8.00,
+      "color": "#10B981"
+    },
+    {
+      "provider": "OpenAI",
+      "model": "GPT-4o-mini",
+      "model_id": "gpt-4o-mini",
+      "input_price_per_million_usd": 0.15,
+      "output_price_per_million_usd": 0.60,
+      "color": "#34D399"
+    },
+    {
+      "provider": "Google",
+      "model": "Gemini 2.5 Flash",
+      "model_id": "gemini-2.5-flash",
+      "input_price_per_million_usd": 0.075,
+      "output_price_per_million_usd": 0.30,
+      "color": "#3B82F6"
+    },
+    {
+      "provider": "Google",
+      "model": "Gemini 1.5 Pro",
+      "model_id": "gemini-1.5-pro",
+      "input_price_per_million_usd": 1.25,
+      "output_price_per_million_usd": 5.00,
+      "color": "#60A5FA"
+    },
+    {
+      "provider": "Meta",
+      "model": "Llama 3",
+      "model_id": "llama-3",
+      "input_price_per_million_usd": 0.06,
+      "output_price_per_million_usd": 0.06,
+      "color": "#8B5CF6"
+    },
+    {
+      "provider": "Moonshot",
+      "model": "Kimi",
+      "model_id": "kimi",
+      "input_price_per_million_usd": 0.12,
+      "output_price_per_million_usd": 0.12,
+      "color": "#EC4899"
+    }
+  ]
+}

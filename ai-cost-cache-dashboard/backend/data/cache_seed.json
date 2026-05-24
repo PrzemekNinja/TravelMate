@@ -1,0 +1,127 @@
+[
+  {
+    "key": "What are the top attractions in Prague?",
+    "response": "Prague's top attractions include Prague Castle (the largest ancient castle complex in the world), Charles Bridge with its baroque statues, the Old Town Square with the Astronomical Clock, the Jewish Quarter (Josefov) with its historic synagogues and cemetery, and Wenceslas Square. The city is also famous for its vibrant beer culture with historic pubs like U Medvidku and Lokál.",
+    "embedding": null
+  },
+  {
+    "key": "How to get around Prague by public transport?",
+    "response": "Prague has an excellent public transport system. The metro has 3 lines (A-green, B-yellow, C-red) covering the city center. Trams are the best way to explore neighborhoods — tram 22 is especially scenic. A 24-hour pass costs about 120 CZK (~5 EUR). Taxis and Bolt/Uber are also available. The city center is very walkable.",
+    "embedding": null
+  },
+  {
+    "key": "What Czech food should I try in Prague?",
+    "response": "Must-try Czech dishes: svíčková (beef sirloin in cream sauce with bread dumplings), svíčková na smetaně, guláš (goulash with bread dumplings), trdelník (chimney cake), fried cheese (smažený sýr), and of course Czech beer — Pilsner Urquell, Kozel, and Staropramen are local favorites. Traditional pubs (hospody) are the best places to experience authentic Czech cuisine.",
+    "embedding": null
+  },
+  {
+    "key": "Best time to visit Prague?",
+    "response": "Spring (April-May) and early autumn (September-October) are the best times to visit Prague. The weather is mild (15-20°C), crowds are manageable, and the city is beautiful. Summer (June-August) is peak tourist season — very crowded and hot. Winter (December) is magical for Christmas markets but cold. Avoid major holidays when prices spike.",
+    "embedding": null
+  },
+  {
+    "key": "What are the top attractions in Rome?",
+    "response": "Rome's unmissable sights: the Colosseum and Roman Forum (book tickets in advance!), Vatican City with St. Peter's Basilica and the Sistine Chapel, the Pantheon (free entry), Trevi Fountain, Piazza Navona, Borghese Gallery (reservation required), and the Spanish Steps. The Trastevere neighborhood is perfect for evening walks and authentic Roman dining.",
+    "embedding": null
+  },
+  {
+    "key": "How to get around Rome?",
+    "response": "Rome's historic center is best explored on foot. The metro has only 2 main lines (A and B) — useful for longer distances. Buses cover the whole city but can be slow in traffic. Taxis are metered; use official white cabs. Avoid driving in the city center (ZTL restricted zones). A 48-hour transport pass costs about €7.",
+    "embedding": null
+  },
+  {
+    "key": "What to eat in Rome?",
+    "response": "Roman cuisine highlights: cacio e pepe (pasta with pecorino and black pepper), carbonara (eggs, guanciale, pecorino — no cream!), supplì (fried rice balls), pizza al taglio (pizza by the slice), artichokes alla romana, and gelato. Avoid tourist traps near major monuments — walk a few streets away for authentic trattorias. Aperitivo hour (6-8pm) is a local ritual.",
+    "embedding": null
+  },
+  {
+    "key": "Best time to visit Rome?",
+    "response": "April-May and September-October are ideal for Rome — pleasant temperatures (18-25°C), fewer crowds than summer. July-August is extremely hot (35°C+) and crowded. Winter (November-February) is quieter and cheaper, with mild weather around 10-15°C. Book Vatican and Colosseum tickets months in advance regardless of season.",
+    "embedding": null
+  },
+  {
+    "key": "Top attractions in Tokyo?",
+    "response": "Tokyo's highlights: Senso-ji Temple in Asakusa, Shibuya Crossing (world's busiest pedestrian crossing), Shinjuku Gyoen garden, teamLab digital art museums, Akihabara electronics district, Harajuku's Takeshita Street, Tokyo Skytree for panoramic views, Tsukiji outer market for fresh sushi, and day trips to Nikko or Kamakura. Each neighborhood has its own distinct character.",
+    "embedding": null
+  },
+  {
+    "key": "How to use public transport in Tokyo?",
+    "response": "Tokyo has the world's most efficient public transport. Get a Suica or Pasmo IC card (rechargeable) for seamless travel on metro, JR trains, and buses. The Tokyo Metro day pass (600 JPY) is great for tourists. Google Maps works perfectly for navigation. Trains run from ~5am to midnight. Taxis are expensive — use them only late at night.",
+    "embedding": null
+  },
+  {
+    "key": "What to eat in Tokyo?",
+    "response": "Tokyo has more Michelin stars than any other city. Must-try: ramen (try different regional styles), sushi at Tsukiji or conveyor belt restaurants, tempura, yakitori, tonkatsu, izakaya (Japanese pub) food, and wagyu beef. Convenience stores (7-Eleven, FamilyMart) have surprisingly excellent food. Budget 1000-2000 JPY for a great lunch.",
+    "embedding": null
+  },
+  {
+    "key": "Best time to visit Tokyo?",
+    "response": "Cherry blossom season (late March - early April) is magical but very crowded. Autumn foliage (November) is equally beautiful and less crowded. Spring (April-May) and autumn (October-November) have the best weather (15-25°C). Summer (June-August) is hot and humid with typhoon risk. Winter is cold but clear, with fewer tourists.",
+    "embedding": null
+  },
+  {
+    "key": "Top attractions in Barcelona?",
+    "response": "Barcelona's must-sees: Sagrada Família (Gaudí's masterpiece — book months ahead), Park Güell, Casa Batlló and Casa Milà (La Pedrera), the Gothic Quarter, La Boqueria market, Barceloneta beach, Montjuïc castle, and the Picasso Museum. The city blends modernist architecture, beach culture, and world-class food in a unique way.",
+    "embedding": null
+  },
+  {
+    "key": "How to get around Barcelona?",
+    "response": "Barcelona's metro is excellent — 8 lines covering the whole city. A T-Casual 10-trip card (~€11.35) is the best value. Buses and trams complement the metro. The city is very walkable in the center. Cycling is popular — there are dedicated bike lanes. Avoid taxis near tourist spots; use the app MyTaxi. The airport bus (Aerobús) is the cheapest airport transfer.",
+    "embedding": null
+  },
+  {
+    "key": "What to eat in Barcelona?",
+    "response": "Catalan cuisine highlights: pa amb tomàquet (bread rubbed with tomato), jamón ibérico, patatas bravas, fresh seafood paella (though locals prefer fideuà — noodle paella), pintxos in El Born neighborhood, crema catalana, and cava (Catalan sparkling wine). La Boqueria market is touristy but worth a visit. Dinner is typically after 9pm.",
+    "embedding": null
+  },
+  {
+    "key": "Best time to visit Barcelona?",
+    "response": "May-June and September-October are the sweet spots — warm weather (22-28°C), manageable crowds, and lower prices than peak summer. July-August is very hot (30-35°C) and extremely crowded. The La Mercè festival in September is a great time to visit. Winter is mild (10-15°C) and quiet — good for museum visits.",
+    "embedding": null
+  },
+  {
+    "key": "Top attractions in Amsterdam?",
+    "response": "Amsterdam's highlights: the Rijksmuseum (Rembrandt, Vermeer), Van Gogh Museum (book weeks ahead), Anne Frank House (book months ahead!), canal boat tours, the Jordaan neighborhood, Vondelpark, Heineken Experience, and day trips to Keukenhof tulip gardens (spring only) or Zaanse Schans windmills. The city is best explored by bike.",
+    "embedding": null
+  },
+  {
+    "key": "How to get around Amsterdam?",
+    "response": "Amsterdam is the cycling capital of the world — renting a bike (€10-15/day) is the best way to explore. The tram network covers the city center well; buy an OV-chipkaart or use contactless payment. The metro connects outer neighborhoods. Canal boats are a scenic way to travel. Walking is great in the center. Avoid driving — parking is scarce and expensive.",
+    "embedding": null
+  },
+  {
+    "key": "What to eat in Amsterdam?",
+    "response": "Dutch food highlights: stroopwafels (caramel waffle cookies), raw herring with onions (haring), bitterballen (fried beef ragout balls, perfect with beer), poffertjes (mini pancakes), Dutch cheese (Gouda, Edam) from the market, and Indonesian rijsttafel (rice table) — a legacy of Dutch colonial history. The Albert Cuyp market is great for street food.",
+    "embedding": null
+  },
+  {
+    "key": "Best time to visit Amsterdam?",
+    "response": "April-May is peak season for tulips and pleasant weather (12-18°C) — book everything months ahead. June-August is warm (20-25°C) but very crowded. September-October has fewer tourists and beautiful autumn colors. Winter (November-February) is cold and rainy but atmospheric, with Christmas markets and fewer crowds. King's Day (April 27) is a massive street party.",
+    "embedding": null
+  },
+  {
+    "key": "What is the best neighborhood to stay in Prague?",
+    "response": "Old Town (Staré Město) is the most central — walking distance to everything but pricier. Vinohrady is a local favorite — elegant, quieter, great restaurants and cafes, 10 min metro to center. Žižkov is bohemian and affordable. Malá Strana (Lesser Town) is romantic and historic. For budget travelers, Holešovice has a cool emerging scene with good transport links.",
+    "embedding": null
+  },
+  {
+    "key": "Prague beer culture and best pubs",
+    "response": "Prague is a beer lover's paradise. Czech beer (pivo) is the cheapest and arguably best in the world. Must-visit pubs: U Fleků (brewing since 1499), U Medvidku (home of X-Beer 33, the world's strongest lager), Lokál (modern take on traditional pub, perfect Pilsner Urquell), Pivovarský klub (100+ beers on tap), and Vinohradský pivovar (local craft brewery). A half-liter typically costs 40-60 CZK (~€1.60-2.40).",
+    "embedding": null
+  },
+  {
+    "key": "Rome Vatican visit tips",
+    "response": "Vatican tips: Book tickets online at least 2-3 months ahead for peak season. Arrive early (opening time) to beat crowds in the Sistine Chapel. The Vatican Museums take 3-4 hours minimum. Dress code is strict — cover shoulders and knees. The Vatican Gardens require a separate ticket. St. Peter's Basilica is free but has long queues — use the right-side entrance for shorter wait. The dome climb (551 steps) offers incredible views.",
+    "embedding": null
+  },
+  {
+    "key": "Tokyo neighborhoods guide",
+    "response": "Tokyo's distinct neighborhoods: Shinjuku (entertainment, nightlife, Golden Gai bar alley), Shibuya (youth culture, shopping, famous crossing), Harajuku (fashion, Meiji Shrine), Asakusa (traditional, Senso-ji temple), Akihabara (electronics, anime), Ginza (luxury shopping), Shimokitazawa (indie music, vintage shops), Yanaka (old Tokyo atmosphere). Each is easily accessible by metro.",
+    "embedding": null
+  },
+  {
+    "key": "Barcelona Gaudí architecture guide",
+    "response": "Antoni Gaudí's Barcelona: Sagrada Família (still under construction, completion ~2026) is the must-see — book the tower access for best views. Park Güell has a free zone and a ticketed monumental zone (book ahead). Casa Batlló and Casa Milà (La Pedrera) on Passeig de Gràcia are stunning — evening light shows at Casa Batlló are spectacular. Palau Güell near the Ramblas is less visited but architecturally fascinating. Buy a Gaudí combo ticket for savings.",
+    "embedding": null
+  }
+]

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#312e81" />
+    <title>TravelMate AI</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(99, 102, 241, 0.22), transparent 28%),
+          linear-gradient(180deg, #09090b 0%, #18181b 100%);
+      }
+
+      .app-shell {
+        height: var(--app-height, 100dvh);
+        max-height: var(--app-height, 100dvh);
+      }
+
+      .glass {
+        background: rgba(24, 24, 27, 0.76);
+        backdrop-filter: blur(14px);
+      }
+
+      .message-markdown {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .message-markdown h1,
+      .message-markdown h2,
+      .message-markdown h3 {
+        font-weight: 700;
+        margin-top: 0.75rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .message-markdown ul {
+        list-style: disc;
+        margin-left: 1.25rem;
+      }
+
+      .message-markdown ol {
+        list-style: decimal;
+        margin-left: 1.25rem;
+      }
+
+      .message-markdown p,
+      .message-markdown li {
+        line-height: 1.6;
+      }
+
+      .message-markdown code {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 0.4rem;
+        padding: 0.1rem 0.35rem;
+        white-space: break-spaces;
+      }
+
+      .thin-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      .thin-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.55);
+        border-radius: 9999px;
+      }
+
+      #logStream,
+      #logStreamMobile,
+      #debugSnapshots,
+      #debugSnapshotsMobile {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      @media (min-width: 1280px) {
+        main.admin-open {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) 360px;
+          gap: 1rem;
+          min-height: 0;
+        }
+
+        main.admin-open > section,
+        main.admin-open > aside {
+          min-height: 0;
+          height: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body class="text-zinc-100">
+    <div class="app-shell mx-auto flex h-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+      <header class="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-white/10 glass px-4 py-3 shadow-2xl shadow-indigo-950/20">
+        <div>
+          <p class="text-xs uppercase tracking-[0.3em] text-indigo-300">TravelMate AI</p>
+          <h1 class="text-xl font-semibold text-white sm:text-2xl">Multi-Agent Trip Planner</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="sessionBadge" class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
+            Sesja: inicjalizacja…
+          </span>
+          <button
+            id="adminToggle"
+            class="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            type="button"
+          >
+            Admin_View
+          </button>
+        </div>
+      </header>
+
+      <main id="chatMain" class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <section class="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 glass shadow-2xl shadow-black/20">
+          <div class="border-b border-white/10 px-5 py-4">
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <h2 class="text-lg font-semibold text-white">Asystent podróży</h2>
+                <p class="text-sm text-zinc-400">Opisz swój wyjazd, a TravelMate odpali orkiestrę agentów bez zbędnego jet lagu.</p>
+              </div>
+              <span id="runtimeStatus" class="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">IDLE</span>
+            </div>
+          </div>
+
+          <div id="chatFeed" class="thin-scrollbar flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5">
+            <article class="max-w-3xl rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-zinc-200 shadow-lg shadow-black/10">
+              <p class="font-medium text-indigo-300">TravelMate</p>
+              <div class="message-markdown mt-2 text-zinc-200">
+                Cześć! Opisz podróż marzeń — miasto, liczbę dni, budżet i klimat wyprawy. Ja zajmę się resztą, a w <strong>Admin_View</strong> zobaczysz agentów przy pracy.
+              </div>
+            </article>
+          </div>
+
+          <div class="border-t border-white/10 px-4 py-4 sm:px-5">
+            <form id="chatForm" class="flex flex-col gap-3">
+              <label class="sr-only" for="messageInput">Wiadomość</label>
+              <textarea
+                id="messageInput"
+                class="min-h-32 w-full resize-y rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+                placeholder="Np. 5 dni w Lizbonie dla pary, budżet Mid, lubimy sztukę, jedzenie i spokojne tempo…"
+              ></textarea>
+              <div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                <p class="text-xs text-zinc-500">WebSocket streamuje logi i statusy agentów na żywo. Trochę jak reality show, tylko dla pipeline’u.</p>
+                <button
+                  id="sendButton"
+                  class="inline-flex items-center justify-center rounded-2xl bg-violet-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="submit"
+                >
+                  Wyślij
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <aside id="adminPanel" class="hidden h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 glass shadow-2xl shadow-black/20">
+          <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+            <div>
+              <h2 class="text-lg font-semibold text-white">Admin_View</h2>
+              <p class="text-sm text-zinc-400">Logi, status agentów i JSON debugowy.</p>
+            </div>
+            <button id="adminCloseDesktop" class="rounded-lg border border-white/10 px-3 py-1 text-xs text-zinc-300">Zamknij</button>
+          </div>
+          <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-4 overflow-hidden px-4 py-4">
+            <section class="min-h-0">
+              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Agenci</h3>
+              <div id="agentList" class="thin-scrollbar max-h-44 overflow-y-auto grid gap-2 pr-1"></div>
+            </section>
+            <section class="min-h-0 flex flex-col">
+              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Log stream</h3>
+              <div id="logStream" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+            </section>
+            <section class="min-h-0 flex flex-col">
+              <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Debug JSON</h3>
+              <div id="debugSnapshots" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+            </section>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <div id="adminModal" class="fixed inset-0 z-50 hidden bg-black/60 p-4 backdrop-blur-sm xl:hidden">
+      <div class="glass flex h-full flex-col rounded-3xl border border-white/10">
+        <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div>
+            <h2 class="text-lg font-semibold text-white">Admin_View</h2>
+            <p class="text-sm text-zinc-400">Debugging w czasie rzeczywistym</p>
+          </div>
+          <button id="adminCloseMobile" class="rounded-xl border border-white/10 px-3 py-2 text-sm text-zinc-200">Zamknij</button>
+        </div>
+        <div class="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-4 overflow-hidden px-4 py-4">
+          <section class="min-h-0">
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Agenci</h3>
+            <div id="agentListMobile" class="thin-scrollbar max-h-40 overflow-y-auto grid gap-2 pr-1"></div>
+          </section>
+          <section class="min-h-0 flex flex-col">
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Log stream</h3>
+            <div id="logStreamMobile" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+          </section>
+          <section class="min-h-0 flex flex-col">
+            <h3 class="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">Debug JSON</h3>
+            <div id="debugSnapshotsMobile" class="thin-scrollbar min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950/60 p-3 text-xs text-zinc-300"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const STORAGE_KEY = "travelmate-session-id";
+      const sessionId = localStorage.getItem(STORAGE_KEY) || crypto.randomUUID();
+      localStorage.setItem(STORAGE_KEY, sessionId);
+
+      const state = {
+        sessionId,
+        socket: null,
+        logs: [],
+        debugSnapshots: [],
+        agentStatuses: [],
+        messages: new Set(),
+        runtimeStatus: "idle",
+        adminOpen: false,
+      };
+
+      const chatMain = document.getElementById("chatMain");
+      const chatFeed = document.getElementById("chatFeed");
+      const chatForm = document.getElementById("chatForm");
+      const messageInput = document.getElementById("messageInput");
+      const sendButton = document.getElementById("sendButton");
+      const runtimeStatus = document.getElementById("runtimeStatus");
+      const sessionBadge = document.getElementById("sessionBadge");
+      const adminToggle = document.getElementById("adminToggle");
+      const adminPanel = document.getElementById("adminPanel");
+      const adminModal = document.getElementById("adminModal");
+      const adminCloseMobile = document.getElementById("adminCloseMobile");
+      const agentTargets = [document.getElementById("agentList"), document.getElementById("agentListMobile")];
+      const logTargets = [document.getElementById("logStream"), document.getElementById("logStreamMobile")];
+      const debugTargets = [document.getElementById("debugSnapshots"), document.getElementById("debugSnapshotsMobile")];
+
+      sessionBadge.textContent = `Sesja: ${sessionId.slice(0, 8)}…`;
+
+      function escapeHtml(value) {
+        return value
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatMarkdownLite(markdown) {
+        const escaped = escapeHtml(markdown);
+        return escaped
+          .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+          .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+          .replace(/^# (.*)$/gm, "<h1>$1</h1>")
+          .replace(/^[-*] (.*)$/gm, "<li>$1</li>")
+          .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(/`([^`]+)`/g, "<code>$1</code>")
+          .replace(/\n{2,}/g, "</p><p>")
+          .replace(/\n/g, "<br />");
+      }
+
+      function appendMessage(role, content, createdAt = new Date().toISOString()) {
+        const key = `${role}:${createdAt}:${content}`;
+        if (state.messages.has(key)) {
+          return;
+        }
+        state.messages.add(key);
+
+        const wrapper = document.createElement("article");
+        const isUser = role === "user";
+        wrapper.className = [
+          "max-w-3xl rounded-2xl border px-4 py-3 text-sm shadow-lg shadow-black/10",
+          isUser
+            ? "ml-auto border-indigo-400/30 bg-indigo-500/20 text-indigo-50"
+            : "border-white/10 bg-white/5 text-zinc-200",
+        ].join(" ");
+
+        wrapper.innerHTML = `
+          <div class="flex items-center justify-between gap-4">
+            <p class="font-medium ${isUser ? "text-indigo-200" : "text-indigo-300"}">${isUser ? "Ty" : "TravelMate"}</p>
+            <span class="text-[11px] text-zinc-400">${new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+          <div class="message-markdown mt-2">${formatMarkdownLite(content)}</div>
+        `;
+        chatFeed.appendChild(wrapper);
+        chatFeed.scrollTop = chatFeed.scrollHeight;
+      }
+
+      function renderAgents() {
+        const markup = state.agentStatuses
+          .map(({ name, status, elapsed_seconds }) => {
+            const color = {
+              IDLE: "bg-zinc-800 text-zinc-300",
+              PROCESSING: "bg-amber-500/20 text-amber-200 border border-amber-300/30",
+              DONE: "bg-emerald-500/20 text-emerald-200 border border-emerald-300/30",
+              ERROR: "bg-rose-500/20 text-rose-200 border border-rose-300/30",
+            }[status] || "bg-zinc-800 text-zinc-300";
+
+            const hasElapsed = typeof elapsed_seconds === "number";
+            const elapsed = hasElapsed ? `${elapsed_seconds.toFixed(1)}s` : "";
+            const badgeText = hasElapsed ? `${status} • ${elapsed}` : status;
+
+            return `
+              <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+                <span class="text-sm text-zinc-200">${name}</span>
+                <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold ${color}">${badgeText}</span>
+              </div>
+            `;
+          })
+          .join("");
+        agentTargets.forEach((target) => {
+          target.innerHTML = markup || '<p class="text-xs text-zinc-500">Brak danych o agentach.</p>';
+        });
+      }
+
+      function renderLogs() {
+        const markup = state.logs
+          .slice(-120)
+          .map((entry) => `<div class="mb-2 border-b border-white/5 pb-2 last:mb-0 last:border-b-0 last:pb-0">${escapeHtml(entry.message)}</div>`)
+          .join("");
+        logTargets.forEach((target) => {
+          target.innerHTML = markup || '<p class="text-xs text-zinc-500">Logi pojawią się po uruchomieniu pipeline’u.</p>';
+          target.scrollTop = target.scrollHeight;
+        });
+      }
+
+      function renderDebug() {
+        const markup = state.debugSnapshots
+          .slice(-20)
+          .map((item) => `
+            <details class="mb-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+              <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">${escapeHtml(item.label)}</summary>
+              <pre class="mt-2 whitespace-pre-wrap break-words text-[11px] text-zinc-300">${escapeHtml(JSON.stringify(item.data, null, 2))}</pre>
+            </details>
+          `)
+          .join("");
+        debugTargets.forEach((target) => {
+          target.innerHTML = markup || '<p class="text-xs text-zinc-500">Snapshoty debugowe pojawią się w trakcie i po zakończeniu planowania.</p>';
+          target.scrollTop = target.scrollHeight;
+        });
+      }
+
+      function setRuntimeStatus(status) {
+        state.runtimeStatus = status;
+        runtimeStatus.textContent = status.toUpperCase();
+        runtimeStatus.className = "rounded-full px-3 py-1 text-xs font-medium ";
+        if (status === "completed") {
+          runtimeStatus.classList.add("bg-emerald-500/20", "text-emerald-200");
+        } else if (status === "running" || status === "queued") {
+          runtimeStatus.classList.add("bg-amber-500/20", "text-amber-200");
+        } else if (status === "error") {
+          runtimeStatus.classList.add("bg-rose-500/20", "text-rose-200");
+        } else {
+          runtimeStatus.classList.add("bg-zinc-800", "text-zinc-300");
+        }
+      }
+
+      function handleEvent(event) {
+        switch (event.type) {
+          case "chat_message":
+            appendMessage(event.role, event.content, event.created_at);
+            break;
+          case "log_entry":
+            state.logs.push(event);
+            renderLogs();
+            break;
+          case "debug_json":
+            state.debugSnapshots.push(event);
+            renderDebug();
+            break;
+          case "agent_statuses":
+            state.agentStatuses = event.agents;
+            renderAgents();
+            break;
+          case "session_status":
+            setRuntimeStatus(event.status);
+            break;
+          case "final_result":
+            if (event.html_output_path) {
+              appendMessage(
+                "assistant",
+                `Plan zapisany do: \`${event.html_output_path}\`\n\nDocelowa destynacja: **${event.destination}** (${event.days} dni).`,
+                new Date().toISOString(),
+              );
+            }
+            break;
+          case "error":
+            state.logs.push({ message: `[error] ${event.message}` });
+            renderLogs();
+            break;
+          default:
+            break;
+        }
+      }
+
+      function connectSocket() {
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const url = `${protocol}://${window.location.host}/admin/logs?session_id=${encodeURIComponent(state.sessionId)}`;
+        state.socket = new WebSocket(url);
+
+        state.socket.addEventListener("message", (messageEvent) => {
+          const payload = JSON.parse(messageEvent.data);
+          handleEvent(payload);
+        });
+
+        state.socket.addEventListener("close", () => {
+          setRuntimeStatus(state.runtimeStatus === "running" ? "reconnecting" : state.runtimeStatus);
+          window.setTimeout(connectSocket, 1500);
+        });
+      }
+
+      async function sendMessage(event) {
+        event.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) {
+          messageInput.focus();
+          return;
+        }
+
+        sendButton.disabled = true;
+        try {
+          const response = await fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: state.sessionId, message }),
+          });
+
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.detail || "Nie udało się wysłać wiadomości.");
+          }
+
+          messageInput.value = "";
+          messageInput.style.height = "auto";
+        } catch (error) {
+          appendMessage("assistant", `Nie udało się wysłać wiadomości: ${error.message}`);
+        } finally {
+          sendButton.disabled = false;
+        }
+      }
+
+      function autoGrowTextarea() {
+        messageInput.style.height = "auto";
+        messageInput.style.height = `${Math.min(messageInput.scrollHeight, 320)}px`;
+      }
+
+      function toggleAdminView(forceOpen = null) {
+        const shouldOpen = forceOpen !== null ? forceOpen : !state.adminOpen;
+        state.adminOpen = shouldOpen;
+
+        if (window.matchMedia("(min-width: 1280px)").matches) {
+          if (shouldOpen) {
+            adminPanel.classList.remove("hidden");
+            adminPanel.classList.add("flex");
+            chatMain.classList.add("admin-open");
+          } else {
+            adminPanel.classList.remove("flex");
+            adminPanel.classList.add("hidden");
+            chatMain.classList.remove("admin-open");
+          }
+        } else {
+          adminModal.classList.toggle("hidden", !shouldOpen);
+        }
+      }
+
+      function syncAdminLayoutOnResize() {
+        syncViewportHeight();
+        toggleAdminView(state.adminOpen);
+      }
+
+      function syncViewportHeight() {
+        document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
+      }
+
+      adminToggle.addEventListener("click", () => toggleAdminView());
+      document.getElementById("adminCloseDesktop").addEventListener("click", () => toggleAdminView(false));
+      adminCloseMobile.addEventListener("click", () => toggleAdminView(false));
+      chatForm.addEventListener("submit", sendMessage);
+      messageInput.addEventListener("input", autoGrowTextarea);
+      window.addEventListener("resize", syncAdminLayoutOnResize);
+
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+        });
+      }
+
+      renderAgents();
+      renderLogs();
+      renderDebug();
+      connectSocket();
+      autoGrowTextarea();
+      syncViewportHeight();
+      syncAdminLayoutOnResize();
+    </script>
+  </body>
+</html>
