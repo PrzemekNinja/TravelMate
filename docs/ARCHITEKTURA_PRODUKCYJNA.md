@@ -813,7 +813,257 @@ Latency: < 1s
 
 ---
 
-## 6. Architektura bezpieczeństwa — szczegóły
+## 6. PostgreSQL + Agenci — jak dokładnie współpracują
+
+Ta sekcja wyjaśnia krok po kroku mechanizm współpracy bazy danych z agentami LLM — co robi baza, co robi agent, i jak dane przepływają między nimi.
+
+### 6.1 Krok 1 — Embedding zapytania
+
+Zapytanie użytkownika jest zamieniane na wektor liczbowy przez **model embeddingowy** (nie agent LLM — to osobny, tani model):
+
+```
+"5 dni w Pradze, Mid, para, historia i piwo"
+        ↓ text-embedding-3-small (OpenAI) lub text-embedding-004 (Google)
+[0.23, -0.87, 0.41, 0.12, -0.33, ... ] ← 1536 liczb
+```
+
+Koszt embeddingu: ~$0.00002 (pomijalne).
+
+---
+
+### 6.2 Krok 2 — PostgreSQL robi wyszukiwanie wektorowe (ANN)
+
+Baza dostaje wektor i szuka podobnych wpisów używając rozszerzenia `pgvector` i indeksu HNSW:
+
+```sql
+SELECT
+    id,
+    query_key,
+    request_params,
+    profile_summary,
+    transport_report,
+    geo_output,
+    itinerary_draft,
+    response_md,
+    1 - (query_embedding <=> $1) AS similarity
+FROM semantic_cache
+WHERE is_active = TRUE
+  AND destination = 'Prague'          -- filtr dla szybkości
+ORDER BY query_embedding <=> $1       -- sortuj po podobieństwie cosine
+LIMIT 5;                              -- top 5 kandydatów
+```
+
+Wynik — baza zwraca np.:
+```
+similarity=0.94 | "4 dni w Pradze, Mid, para, historia i piwo"
+similarity=0.81 | "5 dni w Pradze, Mid, solo, historia"
+similarity=0.71 | "3 dni w Pradze, Luxury, para, architektura"
+```
+
+Czas zapytania: ~5-20ms (indeks HNSW na 100K wpisów).
+
+---
+
+### 6.3 Krok 3 — Cache Decision Engine (logika aplikacyjna, nie LLM)
+
+Python analizuje wyniki i decyduje o ścieżce — **bez żadnego wywołania LLM**:
+
+```python
+best_match = results[0]  # similarity=0.94
+
+if best_match.similarity >= 0.88 and params_match(best_match, new_request):
+    return route_A_full_hit(best_match)          # baza odpowiada sama
+
+elif best_match.similarity >= 0.70:
+    decomposition = cache_decomposer(best_match, new_request)
+    return route_B_partial_hit(best_match, decomposition)  # baza + wybrani agenci
+
+else:
+    return route_C_full_miss(new_request)        # cały pipeline od zera
+```
+
+---
+
+### 6.4 Ścieżka A — Full Hit: baza odpowiada bez agentów
+
+Similarity ≥ 0.88 i parametry identyczne. Żaden agent LLM nie jest wywoływany poza małym Formatterem.
+
+```
+PostgreSQL zwraca:
+  ✅ response_md      → gotowy plan podróży (Markdown)
+  ✅ geo_output       → współrzędne, adresy, TripAdvisor data
+
+Formatter Agent (Gemini Flash, ~$0.001):
+  → Dostaje gotowy plan z bazy
+  → Dostosowuje styl (B2C emoji vs B2B clean)
+  → Sprawdza spójność
+  → Zwraca finalną odpowiedź
+
+Czas: < 1s | Koszt: ~$0.001
+```
+
+---
+
+### 6.5 Ścieżka B — Partial Hit: baza karmi agentów danymi
+
+Similarity 0.70–0.87 lub różnica parametrów. Cache Decomposer analizuje co można reużyć.
+
+**Przykład**: cached "4 dni Praga Mid" → nowe "5 dni Praga Mid"
+
+```
+Co PostgreSQL dostarcza agentom (bez LLM):
+  ✅ profile_summary    → "Cultural Explorer, Beer Focus, Mid budget"
+  ✅ transport_report   → "Lot Warszawa-Praga, PKP opcja, wynajem auta"
+  ✅ geo_output         → Strefy geograficzne Pragi + HERE data + TripAdvisor
+
+Co agenci LLM muszą wygenerować (tylko brakujące):
+  🔄 itinerary_agent   → Dostaje geo_output z bazy + profile z bazy
+                          Generuje plan z 5 dniami (zamiast 4)
+                          Input: ~800 tokenów | Output: ~2000 tokenów
+
+  🔄 verification_agent → Weryfikuje nowy plan
+                          Input: ~600 tokenów | Output: ~300 tokenów
+
+  🔄 formatter_agent   → Składa całość
+                          Input: ~1500 tokenów | Output: ~3500 tokenów
+
+Czas: ~8-12s (zamiast 25-35s) | Koszt: ~$0.015 (zamiast ~$0.05)
+Oszczędność: ~70%
+```
+
+**Kluczowe**: `itinerary_agent` dostaje dane z bazy w identycznym formacie jak normalnie — nie wie skąd przyszły. Baza jest transparentna dla agenta:
+
+```python
+# Normalny flow (Full Miss):
+payload = {
+    "request": new_request,
+    "profile": profile_agent_output,    # ← z agenta LLM
+    "geo": geo_agent_output,            # ← z agenta LLM
+}
+
+# Partial Hit flow:
+payload = {
+    "request": new_request,
+    "profile": cache_entry.profile_summary,   # ← z PostgreSQL
+    "geo": cache_entry.geo_output,            # ← z PostgreSQL
+}
+# Agent itinerary_agent nie widzi różnicy — format identyczny
+```
+
+---
+
+### 6.6 Ścieżka C — Full Miss: tylko agenci, potem zapis do bazy
+
+Baza nie ma nic podobnego. Cały pipeline od zera. Po zakończeniu wynik jest zapisywany do bazy dla przyszłych zapytań.
+
+```python
+# Cache Writer — co zapisuje do PostgreSQL po Full Miss:
+INSERT INTO semantic_cache (
+    query_embedding,    -- wektor zapytania (do przyszłych lookupów)
+    query_key,          -- oryginalne zapytanie tekstowe
+    request_params,     -- JSON z parametrami (destination, days, budget...)
+    profile_summary,    -- output profile_agent
+    transport_report,   -- output transport_agent
+    geo_output,         -- output geo_agent (z HERE data + TripAdvisor)
+    itinerary_draft,    -- output itinerary_agent (JSON)
+    response_md,        -- finalny plan (Markdown)
+    destination,        -- indeks dla szybszego filtrowania
+    expires_at          -- NOW() + interval '90 days'
+)
+```
+
+Następne podobne zapytanie trafi na Ścieżkę A lub B.
+
+---
+
+### 6.7 Schemat przepływu danych PostgreSQL ↔ Agenci
+
+```
+Zapytanie użytkownika
+        │
+        ▼
+  Embedding Model
+  (nie LLM, tani)
+        │
+        ▼ wektor 1536-dim
+        │
+┌───────▼────────────────────────────────────────────────────┐
+│                    PostgreSQL + pgvector                    │
+│                                                            │
+│  ANN Search (HNSW index, ~10ms)                           │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ semantic_cache                                       │  │
+│  │  query_embedding  ← cosine similarity search        │  │
+│  │  profile_summary  ─────────────────────────────────►│  │
+│  │  transport_report ─────────────────────────────────►│  │
+│  │  geo_output       ─────────────────────────────────►│  │
+│  │  itinerary_draft  ─────────────────────────────────►│  │
+│  │  response_md      ─────────────────────────────────►│  │
+│  └──────────────────────────────────────────────────────┘  │
+└───────────────────────────────┬────────────────────────────┘
+                                │
+                    ┌───────────▼───────────┐
+                    │  Cache Decision Engine │
+                    │  (Python, nie LLM)     │
+                    └───────────┬───────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+         Full Hit          Partial Hit        Full Miss
+              │                 │                 │
+              │         ┌───────▼───────┐         │
+              │         │ Cache         │         │
+              │         │ Decomposer    │         │
+              │         └───────┬───────┘         │
+              │                 │                 │
+              │    ┌────────────▼──────────┐      │
+              │    │  Wybrani agenci LLM   │      │
+              │    │  (2-4 z 6)            │      │
+              │    │                       │      │
+              │    │  Wejście agentów:     │      │
+              │    │  ← dane z PostgreSQL  │      │
+              │    │  ← nowe parametry     │      │
+              │    └────────────┬──────────┘      │
+              │                 │                 │
+              │                 │    ┌────────────▼──────────┐
+              │                 │    │  Wszyscy agenci LLM   │
+              │                 │    │  (6 z 6)              │
+              │                 │    └────────────┬──────────┘
+              │                 │                 │
+              └────────┬────────┘─────────────────┘
+                       │
+                       ▼
+              Formatter + Security Guard
+                       │
+                       ▼
+              ┌────────▼────────┐
+              │  Cache Writer   │  (tylko dla Partial Hit i Full Miss)
+              │  INSERT INTO    │
+              │  PostgreSQL     │
+              └─────────────────┘
+                       │
+                       ▼
+              Odpowiedź do użytkownika
+```
+
+---
+
+### 6.8 Dlaczego to działa dobrze dla travel plannera
+
+Wiedza geograficzna o Pradze (atrakcje, strefy, HERE coordinates, TripAdvisor data) zmienia się rzadko — raz na kilka miesięcy. Natomiast plan wycieczki (co robić każdego dnia) zależy od preferencji użytkownika i zmienia się przy każdym zapytaniu.
+
+**Baza przechowuje stabilną wiedzę** (geo, transport, profil podróżnika), **agenci generują zmienną część** (konkretny itinerary). To jest optymalne rozdzielenie odpowiedzialności — baza robi to co robi najlepiej (szybkie wyszukiwanie), agenci robią to co robią najlepiej (rozumowanie i generowanie).
+
+| Co przechowuje baza | Jak często się zmienia | TTL |
+|---|---|---|
+| Geo clustering Pragi (strefy) | Rzadko (miesiące) | 90 dni |
+| HERE coordinates + adresy | Bardzo rzadko | 90 dni |
+| TripAdvisor ratings/photos | Co kilka tygodni | 30 dni |
+| Transport options (loty, PKP) | Co kilka dni | 7 dni |
+| Profil podróżnika (archetyp) | Zależy od parametrów | 90 dni |
+| Konkretny itinerary (plan dnia) | Przy każdej zmianie params | 1-30 dni |
+
+---
 
 ### 6.1 Warstwy ochrony
 
