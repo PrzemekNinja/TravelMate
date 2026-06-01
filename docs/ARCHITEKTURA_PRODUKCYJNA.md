@@ -380,7 +380,124 @@ Zapytanie użytkownika
 
 ---
 
-## 5. Opis agentów — POC vs Produkcja
+## 4.3 Cache Validation Gate — dwuwarstwowa weryfikacja trafności cache
+
+### Problem: podobieństwo wektorowe ≠ poprawna odpowiedź
+
+Wynik cosine similarity jest miarą matematyczną — nie semantyczną gwarancją. Score 0.85 oznacza "te wektory są blisko siebie", ale nie oznacza "ten plan podróży faktycznie odpowiada na nowe zapytanie". Istnieją realne przypadki błędów:
+
+- Użytkownik pyta o "Pragę 4 dni, wegetarianie" — cache zwraca "Pragę 4 dni, kultura piwna" z similarity 0.84 (ta sama destynacja, ta sama liczba dni, ale zupełnie inne zainteresowania)
+- Użytkownik pyta o "Barcelonę zimą" — cache zwraca "Barcelonę latem" z similarity 0.81 (to samo miasto, inny sezon = błędne rekomendacje)
+- Kolizja nazw destynacji — "Frankfurt am Main" vs "Frankfurt an der Oder" — oba jako "Frankfurt" w zapytaniu
+
+### Rozwiązanie: dwie warstwy walidacji
+
+```
+Cache Lookup → PARTIAL HIT lub FULL HIT
+        │
+        ▼
+┌───────────────────────────────────────┐
+│  WARSTWA 1: Cache Relevance Check     │  ← Szybka, tania (~$0.001)
+│  Gemini Flash — binarne TAK/NIE       │
+│  "Czy ten plan odpowiada na zapytanie?"│
+└────────────────┬──────────────────────┘
+                 │
+         ┌───────┴───────┐
+         │               │
+        TAK             NIE
+         │               │
+         ▼               ▼
+   Kontynuuj        Fallback do
+   ścieżką A/B      Complexity Router
+                    (Ścieżka C)
+         │
+         ▼ (tylko Ścieżka B — Partial Hit)
+┌───────────────────────────────────────┐
+│  Selective Agents (2-4 agentów)       │
+└────────────────┬──────────────────────┘
+                 │
+                 ▼
+┌───────────────────────────────────────┐
+│  WARSTWA 2: verification_agent        │  ← Głębsza weryfikacja
+│  "Czy złożony plan (cache + nowe dane)│
+│   jest spójny i poprawny?"            │
+└────────────────┬──────────────────────┘
+                 │
+         ┌───────┴───────┐
+         │               │
+      ZGADZA SIĘ      NIE ZGADZA
+         │               │
+         ▼               ▼
+   Output Shield    Fallback do
+   → Formatter      Complexity Router
+   → Response       (Ścieżka C, pełny pipeline)
+                    BEZ ponownego cache lookup
+```
+
+### Warstwa 1 — Cache Relevance Check
+
+**Kiedy**: Bezpośrednio po cache lookup, przed uruchomieniem jakichkolwiek agentów.
+
+**Model**: Gemini Flash lub GPT-4o-mini — mały, szybki, tani (~$0.001).
+
+**Pytanie do modelu**:
+```
+Masz cached plan podróży i nowe zapytanie użytkownika.
+Oceń czy cached plan faktycznie odpowiada na nowe zapytanie.
+
+Sprawdź:
+1. Destynacja — czy to to samo miasto/region?
+2. Kluczowe zainteresowania — czy są zgodne (min. 70% overlap)?
+3. Budżet — czy jest identyczny lub kompatybilny?
+4. Sezon/daty — czy cached plan jest odpowiedni dla podanego okresu?
+5. Specjalne wymagania — czy constraints są spełnione?
+
+Odpowiedz: TAK (plan jest odpowiedni) lub NIE (plan nie pasuje) + krótkie uzasadnienie.
+```
+
+**Akcja przy NIE**: Natychmiastowy fallback do Complexity Router (Ścieżka C). Cached entry otrzymuje obniżony `confidence_score` w bazie — jeśli ten sam wpis wielokrotnie nie przechodzi walidacji, zostaje oznaczony `is_active = FALSE`.
+
+**Akcja przy TAK**: Kontynuuj ścieżką A lub B.
+
+**Koszt**: ~$0.001 per sprawdzenie. Przy 40% cache hit rate i 1000 req/dzień = ~$0.40/dzień = $12/miesiąc. Opłacalne.
+
+### Warstwa 2 — verification_agent jako Cache Quality Guard
+
+**Kiedy**: Tylko dla Ścieżki B (Partial Hit) — po uruchomieniu selective agents, przed Output Shield.
+
+**Rozszerzenie roli verification_agent**: W produkcji verification_agent dostaje dodatkowy kontekst:
+- Które komponenty pochodzą z cache (i kiedy były wygenerowane)
+- Które komponenty zostały świeżo wygenerowane
+- Oryginalne zapytanie użytkownika
+
+**Dodatkowe sprawdzenia**:
+- Czy cached geo_output (strefy geograficzne) jest spójny z nowym itinerary?
+- Czy cached transport_report pasuje do nowych dat (jeśli podano)?
+- Czy plan jako całość (cache + nowe) tworzy logiczną, spójną wycieczkę?
+
+**Akcja przy braku zgody**: Fallback do Complexity Router — ale **bez** ponownego cache lookup (żeby uniknąć pętli). System uruchamia pełny pipeline (Ścieżka C) z oryginalnym zapytaniem.
+
+**Ważne**: Fallback z Warstwy 2 powinien być logowany jako `cache_validation_failure` — te dane pozwalają kalibrować progi similarity threshold w czasie.
+
+### Wpływ na architekturę — aktualizacja tabeli porównawczej
+
+| | Ścieżka A — Full Hit | Ścieżka B — Partial Hit | Ścieżka C — Full Miss |
+|---|---|---|---|
+| **Walidacja cache** | Warstwa 1 tylko | Warstwa 1 + Warstwa 2 | Nie dotyczy |
+| **Fallback możliwy** | Tak (→ Ścieżka C) | Tak (→ Ścieżka C) | Nie |
+| **Dodatkowy koszt walidacji** | ~$0.001 | ~$0.003 | $0 |
+| **Ochrona przed** | "Lucky similarity" | "Lucky similarity" + niespójność | — |
+
+### Długoterminowy efekt — samonaprawiający się cache
+
+Każdy fallback z walidacji jest sygnałem że dany wpis cache jest "ryzykowny". System może automatycznie:
+1. Obniżyć `confidence_score` wpisu po każdym failed validation
+2. Podnieść wymagany próg similarity dla tego wpisu (np. z 0.88 do 0.92)
+3. Oznaczyć `is_active = FALSE` po 3 failed validations
+
+To sprawia że cache z czasem staje się coraz bardziej precyzyjny — słabe wpisy są eliminowane, dobre wpisy są częściej używane.
+
+---
 
 ### 5.1 Mapa ewolucji agentów
 
