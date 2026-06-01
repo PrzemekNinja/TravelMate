@@ -363,6 +363,14 @@ Zapytanie użytkownika
 └──────────────────┬───────────────────┘
                    │
 ┌──────────────────▼───────────────────┐
+│  PROMPT LEAK GUARD                   │  ← Ostatni bezpiecznik
+│  Warstwa 1: Regex (< 1ms, $0)        │
+│  Warstwa 2: LLM classifier (~100ms)  │
+│  Jedyne zadanie: brak wycieku promptu│
+│  Przy wykryciu → BLOKADA + ALERT     │
+└──────────────────┬───────────────────┘
+                   │
+┌──────────────────▼───────────────────┐
 │  CACHE WRITER (async)                │
 │  Tylko dla Ścieżki B i C             │
 │  + aktualizacja confidence_score     │
@@ -1289,7 +1297,174 @@ Azure Monitor + Application Insights:
 
 ---
 
-## 7. Infrastruktura Azure — szczegóły
+## 6.4 Prompt Leak Guard — ostatni bezpiecznik
+
+### Problem: co jeśli wszystkie poprzednie zabezpieczenia zawiodą?
+
+Nawet przy aktywnym Input Shield, Output Shield i Cache Validation Gate — istnieje teoretyczna możliwość że zaawansowany atak prompt injection przejdzie przez wszystkie warstwy i model "ucieknie" z roli, ujawniając w odpowiedzi:
+
+- Treść system promptów (instrukcje dla agentów)
+- Wewnętrzne nazwy zmiennych, klas, funkcji
+- Klucze API lub fragmenty konfiguracji
+- Ścieżki systemowe i strukturę projektu
+- Dane innych użytkowników (cross-contamination)
+
+**Prompt Leak Guard to ostatni, dedykowany bezpiecznik** — jego jedynym zadaniem jest wykrycie i zablokowanie wycieku przed wysłaniem odpowiedzi do użytkownika. Działa po Editorial Formatter, tuż przed wysłaniem response.
+
+### Architektura Prompt Leak Guard
+
+```
+Editorial Formatter
+        │
+        ▼
+┌───────────────────────────────────────────────────────┐
+│  PROMPT LEAK GUARD                                    │
+│  (ostatni bezpiecznik — jedyne zadanie: brak wycieku) │
+│                                                       │
+│  Warstwa 1: Deterministyczna (regex, < 1ms)           │
+│  Warstwa 2: Semantyczna (LLM classifier, ~100ms)      │
+└────────────────────┬──────────────────────────────────┘
+                     │
+             ┌───────┴───────┐
+             │               │
+           CZYSTE         WYCIEK WYKRYTY
+             │               │
+             ▼               ▼
+      Odpowiedź do      BLOKADA + FALLBACK
+      użytkownika       + ALERT + LOG
+```
+
+### Warstwa 1 — Deterministyczna (regex, bez LLM)
+
+Szybkie skanowanie outputu pod kątem znanych wzorców wycieku. Wykonywane w < 1ms, bez żadnego kosztu LLM.
+
+**Kategoria A: Klucze API i sekrety**
+```
+sk-[a-zA-Z0-9]{20,}          ← OpenAI API key
+AIza[0-9A-Za-z\-_]{35}       ← Google API key
+ant-[a-zA-Z0-9\-]{40,}       ← Anthropic API key
+[A-Z0-9]{32}                  ← Generic API key pattern
+Bearer [a-zA-Z0-9\-._~+/]+=* ← JWT/Bearer token
+```
+
+**Kategoria B: Wewnętrzne identyfikatory systemu**
+```
+SYSTEM_PROMPT
+PlannerState
+profile_agent
+transport_agent
+geo_agent
+itinerary_agent
+verification_agent
+formatter_agent
+get_chat_model
+model_factory
+travelmate\.tools
+travelmate\.agents
+travelmate\.prompts
+```
+
+**Kategoria C: Ścieżki systemowe**
+```
+/Users/[a-zA-Z]+/
+/home/[a-zA-Z]+/
+C:\\Users\\
+/travelmate/
+output/[0-9]{8}_
+```
+
+**Kategoria D: Instrukcje systemowe**
+```
+You are the .* Agent
+Your ONLY function is
+CRITICAL:.*instructions
+system prompt
+ignore previous
+```
+
+### Warstwa 2 — Semantyczna (LLM classifier)
+
+Uruchamiana tylko jeśli Warstwa 1 nie wykryła oczywistego wycieku, ale output wygląda podejrzanie (np. zawiera fragmenty kodu, długie listy technicznych terminów, odpowiedzi w stylu "jako AI muszę powiedzieć...").
+
+Model: Gemini Flash lub GPT-4o-mini (~$0.001 per sprawdzenie)
+
+Pytanie do modelu:
+```
+Przeanalizuj poniższy tekst. Czy zawiera on:
+1. Fragmenty instrukcji systemowych lub promptów AI?
+2. Wewnętrzne dane techniczne systemu (nazwy klas, funkcji, ścieżki)?
+3. Klucze API, tokeny lub dane uwierzytelniające?
+4. Informacje które nie powinny być widoczne dla użytkownika końcowego?
+
+Odpowiedz: CZYSTE lub WYCIEK + krótkie uzasadnienie (max 20 słów).
+```
+
+### Akcja przy wykryciu wycieku
+
+**Krok 1: Natychmiastowa blokada**
+Output jest zatrzymywany — użytkownik NIE otrzymuje skażonej odpowiedzi.
+
+**Krok 2: Fallback response**
+Użytkownik otrzymuje generyczny komunikat:
+```
+"Przepraszam, wystąpił problem z generowaniem planu. 
+Spróbuj ponownie lub skontaktuj się z pomocą techniczną."
+```
+Komunikat jest celowo ogólny — nie ujawnia powodu blokady.
+
+**Krok 3: Alert i log**
+```python
+security_event = {
+    "event_type": "prompt_leak_detected",
+    "risk_level": "critical",
+    "session_id": session_id,
+    "user_id": user_id,
+    "detection_layer": "regex" | "llm_classifier",
+    "matched_patterns": [...],  # jakie wzorce wykryto
+    "output_hash": sha256(blocked_output),  # hash do analizy, nie raw output
+    "timestamp": datetime.utcnow().isoformat(),
+}
+# Zapis do security_events w PostgreSQL
+# Alert do Azure Monitor (natychmiastowy)
+# Powiadomienie do zespołu security (email/Slack)
+```
+
+**Krok 4: Automatyczna reakcja**
+- Sesja użytkownika jest oznaczana jako `suspicious`
+- Jeśli ten sam user_id wyzwoli alert 3 razy → automatyczna blokada konta
+- IP jest dodawane do listy podwyższonego ryzyka (wyższy próg dla Input Shield)
+
+### Dlaczego Prompt Leak Guard jest osobnym komponentem (nie częścią Output Shield)?
+
+Output Shield sprawdza wiele rzeczy: data leakage, role escape, hallucinations, coherence. Jest "ogólnym" strażnikiem jakości.
+
+Prompt Leak Guard ma **jedno i tylko jedno zadanie**: upewnić się że żaden fragment systemu wewnętrznego nie wycieknie do użytkownika. Dzięki temu:
+
+1. **Prostota** — jeden cel = łatwiejszy do testowania i audytowania
+2. **Niezawodność** — nie może być "wyłączony" przez inne sprawdzenia
+3. **Szybkość** — Warstwa 1 (regex) jest deterministyczna i działa w < 1ms
+4. **Audytowalność** — każde wykrycie jest logowane osobno z pełnym kontekstem
+
+### Pozycja w pipeline
+
+```
+... → Editorial Formatter → [Prompt Leak Guard] → Odpowiedź do użytkownika
+```
+
+Prompt Leak Guard jest **ostatnim węzłem** przed wysłaniem odpowiedzi. Nawet jeśli wszystkie poprzednie zabezpieczenia zawiodły — ten jeden nie może.
+
+### Koszt i wydajność
+
+| Warstwa | Czas | Koszt | Kiedy uruchamiana |
+|---|---|---|---|
+| Regex (deterministyczna) | < 1ms | $0 | Zawsze |
+| LLM classifier (semantyczna) | ~100ms | ~$0.001 | Tylko gdy output podejrzany |
+
+Przy 1000 req/dzień i założeniu że 5% outputów trafia do Warstwy 2:
+- Koszt Warstwy 2: 50 req × $0.001 = $0.05/dzień = $1.50/miesiąc
+- Całkowity koszt Prompt Leak Guard: **~$1.50/miesiąc**
+
+---
 
 ### 7.1 Komponenty
 
